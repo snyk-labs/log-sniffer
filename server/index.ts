@@ -1,10 +1,20 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { cookieSessionStorage } from "./cookie-session-storage.js";
 
 const app = express();
+
+// Security: Disable X-Powered-By header
+app.disable('x-powered-by');
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Add cookie parser middleware
+app.use(cookieParser());
+
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -61,11 +71,10 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  // Use 0.0.0.0 for Docker containers (detected by DOCKER env var), localhost for local development
+  const host = process.env.HOST || (process.env.DOCKER === 'true' ? '0.0.0.0' : 'localhost');
+  
+  server.listen(port, host, () => {
+    log(`serving on http://${host}:${port}`);
   });
 })();

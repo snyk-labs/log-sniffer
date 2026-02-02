@@ -228,6 +228,12 @@ export default function AuditLogsPage() {
         <ConfigurationPanel
           config={config}
           onSave={configMutation.mutate}
+          onClear={() => {
+            // Invalidate the config query to force refresh
+            queryClient.invalidateQueries({ queryKey: ["/api/config"] });
+            // Also invalidate audit logs
+            queryClient.invalidateQueries({ queryKey: ["/api/audit-logs"] });
+          }}
           isLoading={configMutation.isPending}
           hasData={hasConfig && !!(auditLogsQuery.data?.items?.length || fetchLogsMutation.data?.items?.length)}
         />

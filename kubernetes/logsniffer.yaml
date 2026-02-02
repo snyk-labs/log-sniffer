@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logsniffer
+  namespace: logsniffer
+spec:
+  selector:
+    matchLabels:
+      app: logsniffer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: logsniffer
+    spec:
+      imagePullSecrets:
+        - name: artifact-registry-secret
+      containers:
+        - name: logsniffer
+          image: us-west1-docker.pkg.dev/snyk-cx-se-demo/ctf-images/logsniffer:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name:  google-api-key-secret
+                  key: GOOGLE_API_KEY
+

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: logsniffer-service
+  namespace: logsniffer
+  labels:
+    name: logsniffer-service
+spec:
+  ports:
+    - port: 80
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    app: logsniffer
+  type: LoadBalancer

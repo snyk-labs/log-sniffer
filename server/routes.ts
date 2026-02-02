@@ -4,20 +4,33 @@ import { storage } from "./storage";
 import { SnykApiClient } from "./services/snyk-api";
 import { analyzeAuditLogs, chatWithAI, generateExecutiveSummary } from "./services/gemini-ai";
 import { auditLogFilterSchema, chatMessageSchema } from "@shared/schema";
+import { cookieSessionStorage } from "./cookie-session-storage.js";
+import { fallbackSessionStorage } from "./fallback-session-storage.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // API Configuration routes
   app.get("/api/config", async (req, res) => {
     try {
-      const config = await storage.getApiConfiguration();
-      if (!config) {
-        return res.status(404).json({ error: "No configuration found" });
+      // Use cookie-based sessions for local development
+      const result = cookieSessionStorage.getApiConfiguration(req, res);
+      
+      if (!result) {
+        return res.json(null);
       }
+      
+      const { config, sessionId } = result;
       
       // Don't return the API token for security, but indicate if it exists
       const { snykApiToken, ...safeConfig } = config;
-      res.json({ ...safeConfig, snykApiToken: !!snykApiToken ? "***" : null });
+      const timeRemaining = cookieSessionStorage.getTimeUntilExpiration(req, res);
+      
+      res.json({ 
+        ...safeConfig, 
+        snykApiToken: "***",
+        expiresInMinutes: timeRemaining,
+        sessionId: sessionId // Debug info
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -40,28 +53,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: result.message });
       }
 
-      const existingConfig = await storage.getApiConfiguration();
-      
-      let config;
-      if (existingConfig) {
-        config = await storage.updateApiConfiguration(existingConfig.id, {
-          snykApiToken,
-          groupId,
-          orgId,
-          apiVersion
-        });
-      } else {
-        config = await storage.createApiConfiguration({
-          snykApiToken,
-          groupId,
-          orgId,
-          apiVersion,
-          userId: "default"
-        });
-      }
+      // Store configuration in cookie-based session with 30 minute expiration
+      const config = {
+        snykApiToken,
+        groupId,
+        orgId,
+        apiVersion: apiVersion || "2024-10-15"
+      };
 
-      const { snykApiToken: _, ...safeConfig } = config;
-      res.json({ ...safeConfig, snykApiToken: "***" });
+      // Store configuration in cookie-based session
+      const sessionId = cookieSessionStorage.setApiConfiguration(req, res, config, 30);
+      const timeRemaining = cookieSessionStorage.getTimeUntilExpiration(req, res);
+      
+      res.json({ 
+        groupId,
+        orgId,
+        apiVersion: config.apiVersion,
+        snykApiToken: "***",
+        expiresInMinutes: timeRemaining,
+        sessionId: sessionId // Debug info
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Clear configuration endpoint
+  app.post("/api/config/clear", async (req, res) => {
+    try {
+      cookieSessionStorage.clearConfiguration(req, res);
+      res.json({ message: "Configuration cleared successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Extend session endpoint
+  app.post("/api/config/extend", async (req, res) => {
+    try {
+      const { minutes = 30 } = req.body;
+      const success = cookieSessionStorage.extendConfiguration(req, res, minutes);
+      
+      if (!success) {
+        return res.status(400).json({ error: "No valid configuration to extend" });
+      }
+      
+      const timeRemaining = cookieSessionStorage.getTimeUntilExpiration(req, res);
+      res.json({ 
+        message: "Configuration extended successfully",
+        expiresInMinutes: timeRemaining
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Debug endpoint to see active sessions
+  app.get("/api/debug/sessions", async (req, res) => {
+    try {
+      const debugInfo = cookieSessionStorage.getDebugInfo();
+      res.json(debugInfo);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Debug endpoint to test cookie functionality
+  app.get("/api/debug/test-cookie", async (req, res) => {
+    try {
+      console.log(`[DEBUG] === COOKIE TEST ===`);
+      console.log(`[DEBUG] User-Agent: ${req.get('User-Agent')?.substring(0, 50)}`);
+      console.log(`[DEBUG] Host: ${req.get('Host')}`);
+      console.log(`[DEBUG] Existing cookies:`, req.cookies);
+      
+      // Set a simple test cookie
+      res.cookie('test-cookie', 'test-value-' + Date.now(), {
+        httpOnly: false, // Allow JS access for testing
+        secure: false,
+        sameSite: 'strict',
+        maxAge: 30 * 60 * 1000,
+        path: '/'
+      });
+      
+      // Test our session system
+      const cookieResult = cookieSessionStorage.getApiConfiguration(req, res);
+      
+      res.json({
+        message: "Cookie test - check your browser dev tools for 'test-cookie' and 'snyk-session-id'",
+        sessionResult: cookieResult,
+        existingCookies: req.cookies,
+        host: req.get('Host'),
+        userAgent: req.get('User-Agent')?.substring(0, 100),
+        sessionDebug: cookieSessionStorage.getDebugInfo(),
+        instructions: {
+          step1: "Check browser dev tools > Application > Cookies",
+          step2: "Look for 'test-cookie' and 'snyk-session-id' cookies",
+          step3: "Try this endpoint in different browsers/incognito",
+          step4: "Each should get different session IDs"
+        }
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -85,10 +175,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[SEARCH DEBUG] Received filters:`, JSON.stringify(filters, null, 2));
       
-      const config = await storage.getApiConfiguration();
-      if (!config || !config.snykApiToken) {
-        return res.status(400).json({ error: "Snyk API not configured" });
+      const result = cookieSessionStorage.getApiConfiguration(req, res);
+      if (!result || !result.config || !result.config.snykApiToken) {
+        return res.status(400).json({ error: "Snyk API not configured or session expired" });
       }
+      
+      const config = result.config;
 
       const snykApi = new SnykApiClient(config.snykApiToken, config.apiVersion || "2024-10-15");
 
@@ -151,10 +243,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { format = 'json' } = req.query;
       const filters = auditLogFilterSchema.parse(req.query);
 
-      const config = await storage.getApiConfiguration();
-      if (!config || !config.snykApiToken) {
-        return res.status(400).json({ error: "Snyk API not configured" });
+      const result = cookieSessionStorage.getApiConfiguration(req, res);
+      if (!result || !result.config || !result.config.snykApiToken) {
+        return res.status(400).json({ error: "Snyk API not configured or session expired" });
       }
+      
+      const config = result.config;
 
       const snykApi = new SnykApiClient(config.snykApiToken, config.apiVersion || "2024-10-15");
 
@@ -199,10 +293,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Executive Summary endpoint
   app.get("/api/executive-summary", async (req, res) => {
     try {
-      const config = await storage.getApiConfiguration();
-      if (!config || !config.snykApiToken) {
-        return res.json({ summary: "No API configuration found. Please configure your Snyk API settings." });
+      const result = cookieSessionStorage.getApiConfiguration(req, res);
+      if (!result || !result.config || !result.config.snykApiToken) {
+        return res.json({ summary: "No API configuration found or session expired. Please configure your Snyk API settings." });
       }
+      
+      const config = result.config;
 
       const snykApi = new SnykApiClient(config.snykApiToken, config.apiVersion || "2024-10-15");
 

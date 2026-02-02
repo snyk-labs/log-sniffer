@@ -14,6 +14,7 @@ interface ConfigurationPanelProps {
     orgId?: string;
     apiVersion?: string;
   }) => void;
+  onClear?: () => void;
   isLoading: boolean;
   hasData?: boolean;
 }
@@ -21,6 +22,7 @@ interface ConfigurationPanelProps {
 export default function ConfigurationPanel({
   config,
   onSave,
+  onClear,
   isLoading,
   hasData = false,
 }: ConfigurationPanelProps) {
@@ -105,20 +107,79 @@ export default function ConfigurationPanel({
                   Configure your Snyk API credentials
                 </p>
               )}
-              <Button
-                onClick={handleSubmit}
-                disabled={!isValid || isLoading}
-                className="bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2"
-                data-testid="button-save-config"
-              >
-                <Save className="w-4 h-4" />
-                <span>{isLoading ? "Fetching..." : "Fetch Audit Data"}</span>
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!isValid || isLoading}
+                  className="bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2"
+                  data-testid="button-save-config"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{isLoading ? "Fetching..." : "Fetch Audit Data"}</span>
+                </Button>
+                
+                {hasData && (
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/config/clear', { 
+                          method: 'POST', 
+                          credentials: 'include' 
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error('Failed to clear configuration');
+                        }
+                        
+                        // Clear form data
+                        setFormData({
+                          snykApiToken: "",
+                          groupId: "",
+                          orgId: "",
+                          apiVersion: "2024-10-15",
+                        });
+                        
+                        // Trigger refresh by calling onClear
+                        if (onClear) {
+                          onClear();
+                        }
+                        
+                        // Force component to re-render by collapsing the panel
+                        setIsCollapsed(false);
+                        
+                      } catch (error) {
+                        console.error('Clear configuration error:', error);
+                        // Still try to clear the local state even if the server call failed
+                        setFormData({
+                          snykApiToken: "",
+                          groupId: "",
+                          orgId: "",
+                          apiVersion: "2024-10-15",
+                        });
+                        if (onClear) {
+                          onClear();
+                        }
+                      }
+                    }}
+                    variant="outline"
+                    className="text-red-600 border-red-300 hover:bg-red-50"
+                    data-testid="button-clear-config"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
           )}
           {isCollapsed && hasData && (
-            <div className="text-sm text-gray-500" data-testid="text-config-status">
-              ✓ Configured
+            <div className="flex items-center gap-2 text-sm text-gray-500" data-testid="text-config-status">
+              <span>✓ Configured</span>
+              {config?.expiresInMinutes && (
+                <span className="text-orange-600">
+                  (expires in {config.expiresInMinutes}m)
+                </span>
+              )}
             </div>
           )}
         </div>

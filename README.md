@@ -1,12 +1,63 @@
-# Snyk Audit Log Dashboard
+<p align="center">
+  <img src="client/public/favicon.png" alt="LogSniffer Logo" width="150">
+</p>
+
+# LogSniffer - Snyk Audit Log Dashboard
 
 ## Overview
 
-This is a full-stack web application that provides a security-focused dashboard for analyzing Snyk audit logs. The application integrates with Snyk's API to fetch audit log data and uses Google's Gemini AI to provide intelligent insights and recommendations about security events. Built with React, Express, and PostgreSQL, it offers real-time audit log monitoring, AI-powered analysis, and an interactive chat interface for security insights.
+LogSniffer is a full-stack web application that provides a security-focused dashboard for analyzing Snyk audit logs. The application integrates with Snyk's API to fetch audit log data and uses Google's Gemini AI to provide intelligent insights and recommendations about security events. Built with React, Express, and PostgreSQL, it offers real-time audit log monitoring, AI-powered analysis, and an interactive chat interface for security insights.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Getting Started
+
+Follow these instructions to get the project up and running on your local machine for development and testing purposes.
+
+### Prerequisites
+
+- Node.js (v18 or later recommended)
+- npm (comes with Node.js)
+- Git
+
+### Install dependencies
+
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd log-sniffer
+    ```
+
+2.  **Install dependencies:**
+    This command will install all the necessary packages for both the client and server.
+    ```bash
+    npm install
+    ```
+
+3. Environment Variables
+
+    The application requires some environment variables to connect to Snyk, Google AI, and the database.
+    1.  Create a file named `.env` in the root directory of the project.
+    2.  Add the following variables to the `.env` file, replacing the placeholder values with your actual credentials:
+            ```env
+            # Snyk API Token
+            SNYK_API_TOKEN=your_snyk_api_token
+
+            # Google Gemini API Key
+            GEMINI_API_KEY=your_gemini_api_key
+            ```
+
+4. Run the Application
+
+    To start the development server, run the following command from the root directory:
+
+    ```bash
+    npm run dev
+    ```
+
+    This will start both the backend server and the frontend Vite development server. You can access the application in your browser at `http://localhost:5000`.
 
 ## System Architecture
 
