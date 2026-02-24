@@ -173,7 +173,7 @@ export default function ChatbotSection({ shouldGenerateSummary, onSummaryGenerat
               Security Analyst AI
             </CardTitle>
             <p className="text-purple-100 text-sm">
-              Ask questions about your audit logs • Powered by Google Gemini
+              Ask questions about your audit logs • Powered by AI
             </p>
           </div>
 

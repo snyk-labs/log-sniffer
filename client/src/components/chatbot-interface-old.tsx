@@ -90,7 +90,7 @@ export default function ChatbotInterface() {
                 </div>
                 <div>
                   <h4 className="font-medium" data-testid="text-chat-title">Security Analyst</h4>
-                  <p className="text-gray-100 text-xs">Powered by Google Gemini</p>
+                  <p className="text-gray-100 text-xs">Powered by AI</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">

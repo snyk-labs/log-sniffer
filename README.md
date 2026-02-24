@@ -6,7 +6,7 @@
 
 ## Overview
 
-LogSniffer is a full-stack web application that provides a security-focused dashboard for analyzing Snyk audit logs. The application integrates with Snyk's API to fetch audit log data and uses Google's Gemini AI to provide intelligent insights and recommendations about security events. Built with React, Express, and PostgreSQL, it offers real-time audit log monitoring, AI-powered analysis, and an interactive chat interface for security insights.
+LogSniffer is a full-stack web application that provides a security-focused dashboard for analyzing Snyk audit logs. The application integrates with Snyk's API to fetch audit log data and uses configurable AI (e.g. Google Gemini, OpenAI, or custom OpenAI-compatible endpoints) to provide intelligent insights and recommendations about security events. Built with React, Express, and PostgreSQL, it offers real-time audit log monitoring, AI-powered analysis, and an interactive chat interface for security insights.
 
 ## User Preferences
 
@@ -38,16 +38,7 @@ Follow these instructions to get the project up and running on your local machin
 
 3. Environment Variables
 
-    The application requires some environment variables to connect to Snyk, Google AI, and the database.
-    1.  Create a file named `.env` in the root directory of the project.
-    2.  Add the following variables to the `.env` file, replacing the placeholder values with your actual credentials:
-            ```env
-            # Snyk API Token
-            SNYK_API_TOKEN=your_snyk_api_token
-
-            # Google Gemini API Key
-            GEMINI_API_KEY=your_gemini_api_key
-            ```
+    Create a `.env` file in the project root if needed. Snyk API credentials and the AI provider (e.g. Gemini, OpenAI) are configured in the application UI after you run the app—no server-side API keys are required for AI. You can set Snyk and database-related variables in `.env` if you prefer; the UI will override session-stored config.
 
 4. Run the Application
 
@@ -91,12 +82,12 @@ Follow these instructions to get the project up and running on your local machin
 
 #### Third-Party Services
 - **Snyk API**: Core integration for fetching audit logs, organizations, and groups data
-- **Google Gemini AI**: AI-powered analysis and chat functionality for security insights
+- **AI/LLM**: Configurable in the UI—support for Google Gemini, OpenAI, and custom OpenAI-compatible endpoints for analysis and chat
 - **Neon Database**: Serverless PostgreSQL hosting and management
 
 #### Key Libraries & Frameworks
 - **Database**: Drizzle ORM, @neondatabase/serverless, connect-pg-simple
-- **AI/ML**: @google/genai for Gemini API integration
+- **AI/ML**: @google/genai for Gemini; OpenAI-compatible HTTP for OpenAI and custom providers
 - **UI Components**: Comprehensive Radix UI primitive collection
 - **State Management**: @tanstack/react-query for server state caching
 - **Validation**: Zod schemas with drizzle-zod integration
@@ -126,6 +117,10 @@ The application follows a modern full-stack architecture with clear separation o
 - **Dialog Fix**: Removed duplicate close button ("extra x") from audit log details dialog - now uses only the built-in shadcn/ui dialog close button
 - **Markdown Enhancement**: Added proper Markdown rendering for executive summaries with custom green-themed styling and React Markdown components
 
+### LLM-Agnostic AI (February 2025)
+- **UI-configured AI**: Users choose provider (Google Gemini, OpenAI, or Custom), model, and API key in the app—no server env vars required for AI.
+- **Session-stored config**: LLM configuration is stored per session alongside Snyk config.
+- **Executive Summary Persistence**: Executive summaries remain visible when new chat messages are added.
+
 ### Technical Fixes (August 13, 2025)
 - **Gemini API Fix**: Updated Gemini AI API call structure to use proper contents array format for SDK compatibility
-- **Executive Summary Persistence**: Fixed issue where executive summaries would disappear when new chat messages were added

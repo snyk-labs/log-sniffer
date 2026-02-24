@@ -1,6 +1,14 @@
 import { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 
+export interface LlmSessionConfig {
+  provider: string;
+  model: string;
+  apiKey: string;
+  baseUrl?: string;
+  expiresAt: number;
+}
+
 export interface CookieSession {
   id: string;
   snykConfig?: {
@@ -10,6 +18,7 @@ export interface CookieSession {
     apiVersion?: string;
     expiresAt: number;
   };
+  llmConfig?: LlmSessionConfig;
   createdAt: number;
   lastAccessed: number;
 }
@@ -174,6 +183,41 @@ export class CookieSessionStorage {
     return true;
   }
 
+  // --- LLM configuration (same session, separate TTL) ---
+
+  setLlmConfiguration(
+    req: Request,
+    res: Response,
+    config: { provider: string; model: string; apiKey: string; baseUrl?: string },
+    expirationMinutes: number = 30
+  ): string {
+    const sessionId = this.getOrCreateSessionId(req, res);
+    const session = this.sessions.get(sessionId)!;
+    session.llmConfig = {
+      ...config,
+      expiresAt: Date.now() + (expirationMinutes * 60 * 1000),
+    };
+    return sessionId;
+  }
+
+  getLlmConfiguration(req: Request, res: Response): { config: Omit<LlmSessionConfig, 'apiKey' | 'expiresAt'> & { apiKey: string }; sessionId: string } | null {
+    const sessionId = this.getOrCreateSessionId(req, res);
+    const session = this.sessions.get(sessionId);
+    if (!session?.llmConfig) return null;
+    if (Date.now() > session.llmConfig.expiresAt) {
+      delete session.llmConfig;
+      return null;
+    }
+    const { expiresAt, ...rest } = session.llmConfig;
+    return { config: rest, sessionId };
+  }
+
+  clearLlmConfiguration(req: Request, res: Response): void {
+    const sessionId = this.getOrCreateSessionId(req, res);
+    const session = this.sessions.get(sessionId);
+    if (session) delete session.llmConfig;
+  }
+
   // Cleanup expired sessions
   private cleanupExpiredSessions(): void {
     const now = Date.now();
@@ -194,6 +238,7 @@ export class CookieSessionStorage {
       sessions: Array.from(this.sessions.entries()).map(([id, session]) => ({
         id,
         hasConfig: !!session.snykConfig,
+        hasLlmConfig: !!session.llmConfig,
         configExpired: session.snykConfig ? Date.now() > session.snykConfig.expiresAt : null,
         createdAt: new Date(session.createdAt),
         lastAccessed: new Date(session.lastAccessed),
