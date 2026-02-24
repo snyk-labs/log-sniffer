@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack web application that provides a security-focused dashboard for analyzing Snyk audit logs. The application integrates with Snyk's API to fetch audit log data and uses Google's Gemini AI to provide intelligent insights and recommendations about security events. Built with React, Express, and PostgreSQL, it offers real-time audit log monitoring, AI-powered analysis, and an interactive chat interface for security insights.
+This is a full-stack web application that provides a security-focused dashboard for analyzing Snyk audit logs. The application integrates with Snyk's API to fetch audit log data and uses configurable AI (e.g. Google Gemini, OpenAI, or custom OpenAI-compatible endpoints) to provide intelligent insights and recommendations about security events. Built with React, Express, and PostgreSQL, it offers real-time audit log monitoring, AI-powered analysis, and an interactive chat interface for security insights.
 
 ## User Preferences
 
@@ -40,12 +40,12 @@ Preferred communication style: Simple, everyday language.
 
 #### Third-Party Services
 - **Snyk API**: Core integration for fetching audit logs, organizations, and groups data
-- **Google Gemini AI**: AI-powered analysis and chat functionality for security insights
+- **AI/LLM**: Configurable in the UI—support for Google Gemini, OpenAI, and custom OpenAI-compatible endpoints for analysis and chat
 - **Neon Database**: Serverless PostgreSQL hosting and management
 
 #### Key Libraries & Frameworks
 - **Database**: Drizzle ORM, @neondatabase/serverless, connect-pg-simple
-- **AI/ML**: @google/genai for Gemini API integration
+- **AI/ML**: @google/genai for Gemini; OpenAI-compatible HTTP for OpenAI and custom providers
 - **UI Components**: Comprehensive Radix UI primitive collection
 - **State Management**: @tanstack/react-query for server state caching
 - **Validation**: Zod schemas with drizzle-zod integration
@@ -74,6 +74,9 @@ The application follows a modern full-stack architecture with clear separation o
 - **Chat Interface**: Removed message icon from "Security Analyst AI" header for cleaner design
 - **Dialog Fix**: Removed duplicate close button ("extra x") from audit log details dialog - now uses only the built-in shadcn/ui dialog close button
 - **Markdown Enhancement**: Added proper Markdown rendering for executive summaries with custom green-themed styling and React Markdown components
+
+### LLM-Agnostic AI
+- **UI-configured AI**: Users configure provider (Google Gemini, OpenAI, or Custom), model, and API key in the app—no server env vars required for AI.
 
 ### Technical Fixes (August 13, 2025)
 - **Gemini API Fix**: Updated Gemini AI API call structure to use proper contents array format for SDK compatibility

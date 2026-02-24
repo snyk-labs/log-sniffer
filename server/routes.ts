@@ -2,10 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { SnykApiClient } from "./services/snyk-api";
-import { analyzeAuditLogs, chatWithAI, generateExecutiveSummary } from "./services/gemini-ai";
+import { analyzeAuditLogs, chatWithAI, generateExecutiveSummary } from "./services/llm-service.js";
 import { auditLogFilterSchema, chatMessageSchema } from "@shared/schema";
 import { cookieSessionStorage } from "./cookie-session-storage.js";
-import { fallbackSessionStorage } from "./fallback-session-storage.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -103,6 +102,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Configuration extended successfully",
         expiresInMinutes: timeRemaining
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // LLM configuration (provider, model, API key - stored in session)
+  app.get("/api/llm-config", async (req, res) => {
+    try {
+      const result = cookieSessionStorage.getLlmConfiguration(req, res);
+      if (!result) return res.json(null);
+      const { provider, model } = result.config;
+      res.json({ provider, model, configured: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/llm-config", async (req, res) => {
+    try {
+      const { provider, model, apiKey, baseUrl } = req.body;
+      if (!provider || typeof provider !== "string" || !model || typeof model !== "string" || !apiKey || typeof apiKey !== "string") {
+        return res.status(400).json({ error: "provider, model, and apiKey are required" });
+      }
+      cookieSessionStorage.setLlmConfiguration(req, res, {
+        provider: provider.trim(),
+        model: model.trim(),
+        apiKey: apiKey.trim(),
+        baseUrl: baseUrl && typeof baseUrl === "string" ? baseUrl.trim() || undefined : undefined,
+      }, 30);
+      res.json({ provider: provider.trim(), model: model.trim(), configured: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/llm-config/clear", async (req, res) => {
+    try {
+      cookieSessionStorage.clearLlmConfiguration(req, res);
+      res.json({ message: "LLM configuration cleared successfully" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -334,7 +372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: item.content as any
       }));
 
-      const summary = await generateExecutiveSummary(auditLogs);
+      const llmResult = cookieSessionStorage.getLlmConfiguration(req, res);
+      const llmConfig = llmResult?.config ?? null;
+      const summary = await generateExecutiveSummary(auditLogs, llmConfig);
       
       res.json({ summary });
     } catch (error: any) {
@@ -372,9 +412,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const currentMessages = Array.isArray(session.messages) ? session.messages as any[] : [];
-      
-      // Get AI response
-      const aiResponse = await chatWithAI(message, auditLogs, currentMessages);
+      const llmResult = cookieSessionStorage.getLlmConfiguration(req, res);
+      const llmConfig = llmResult?.config ?? null;
+      const aiResponse = await chatWithAI(message, auditLogs, currentMessages, llmConfig);
       
       const assistantMessage = {
         role: "assistant" as const,
@@ -407,7 +447,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ insights: [] });
       }
 
-      const insights = await analyzeAuditLogs(auditLogs);
+      const llmResult = cookieSessionStorage.getLlmConfiguration(req, res);
+      const llmConfig = llmResult?.config ?? null;
+      const insights = await analyzeAuditLogs(auditLogs, llmConfig);
       res.json({ insights });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

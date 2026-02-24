@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ConfigurationPanel from "@/components/configuration-panel";
+import LlmConfigurationPanel from "@/components/llm-configuration-panel";
 import FilterControls from "@/components/filter-controls";
 import AuditLogTable from "@/components/audit-log-table";
 import ChatbotSection from "@/components/chatbot-section";
@@ -229,13 +230,15 @@ export default function AuditLogsPage() {
           config={config}
           onSave={configMutation.mutate}
           onClear={() => {
-            // Invalidate the config query to force refresh
             queryClient.invalidateQueries({ queryKey: ["/api/config"] });
-            // Also invalidate audit logs
             queryClient.invalidateQueries({ queryKey: ["/api/audit-logs"] });
           }}
           isLoading={configMutation.isPending}
           hasData={hasConfig && !!(auditLogsQuery.data?.items?.length || fetchLogsMutation.data?.items?.length)}
+        />
+
+        <LlmConfigurationPanel
+          onClear={() => queryClient.invalidateQueries({ queryKey: ["/api/llm-config"] })}
         />
 
         {/* Security Analyst Chatbot */}
